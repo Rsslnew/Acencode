@@ -66,23 +66,27 @@ async def main():
     ensure_dirs()
     cleanup_old_temp(max_age_hours=24)
 
-    # 3. Create client
+    # 3. Ensure sessions directory exists (for Pyrogram SQLite)
+    sessions_dir = Config.BASE_DIR / "sessions"
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+
+    # 4. Create client
     app = Client(
         "encode_bot",
         api_id=Config.API_ID,
         api_hash=Config.API_HASH,
         bot_token=Config.BOT_TOKEN,
-        workdir=str(Config.BASE_DIR / "sessions"),
+        workdir=str(sessions_dir),
     )
 
-    # 4. Setup signal handlers
+    # 5. Setup signal handlers
     setup_signal_handlers()
 
-    # 5. Start
+    # 6. Start
     logger.info("Starting Encode Bot...")
     await app.start()
 
-    # 6. Send startup notif to owner (optional)
+    # 7. Send startup notif to owner (optional)
     if Config.OWNER_ID:
         try:
             await app.send_message(
@@ -95,7 +99,7 @@ async def main():
     logger.info("Bot is running. Press Ctrl+C to stop.")
     await idle()
 
-    # 7. Shutdown
+    # 8. Shutdown
     logger.info("Stopping bot...")
     await app.stop()
     logger.info("Bot stopped.")
