@@ -79,8 +79,7 @@ class EncodeHandler:
         # === 2. CHECK QUEUE SLOT ===
         if not await queue_manager.acquire_slot(user_id):
             await message.reply(
-                f"Queue full!
-"
+                f"Queue full!"
                 f"You have {Config.MAX_QUEUE_PER_USER} active jobs."
             )
             try:
@@ -104,8 +103,7 @@ class EncodeHandler:
         queue_pos = await queue_manager.get_queue_position(user_id)
 
         queue_msg = await message.reply_text(
-            f"Added 1 file to queue.
-"
+            f"Added 1 file to queue."
             f"Position: {queue_pos} check /list"
         )
 
@@ -263,19 +261,14 @@ class EncodeHandler:
 
                 # Build caption with settings
                 caption = (
-                    f"Compressed Video
-"
-                    f"{output_size}
-"
-                    f"{saved_text}
-"
+                    f"Compressed Video"
+                    f"{output_size}"
+                    f"{saved_text}"
                     f"Time: {format_duration(total_time)}"
                 )
 
                 if settings.caption:
-                    caption += f"
-
-{settings.caption}"
+                    caption += f"{settings.caption}"
 
                 # Upload options from settings
                 upload_kwargs = {
@@ -334,23 +327,18 @@ class EncodeHandler:
                     pass
 
                 notif_text = (
-                    f"@{username} - File compressed!
-"
-                    f"{output_size} (from {input_size})
-"
+                    f"@{username} - File compressed!"
+                    f"{output_size} (from {input_size})"
                 )
                 if saved_mb > 0:
-                    notif_text += f"Saved: {saved_mb:.0f}MB
-"
+                    notif_text += f"Saved: {saved_mb:.0f}MB"
                 notif_text += (
-                    f"Time: {format_duration(total_time)}
-"
+                    f"Time: {format_duration(total_time)}"
                     f"Check DM for download"
                 )
 
                 if screenshot_paths:
-                    notif_text += f"
-{len(screenshot_paths)} screenshots sent"
+                    notif_text += f"{len(screenshot_paths)} screenshots sent"
 
                 await client.send_message(
                     chat_id=chat_id,
