@@ -1,6 +1,5 @@
 """
-Bot Entry Point - start Pyrogram client dengan reconnect logic.
-Tahan banting: auto reconnect, logging, graceful shutdown.
+Bot Entry Point - start Pyrogram client with reconnect logic.
 """
 import logging
 import signal
@@ -13,6 +12,10 @@ import asyncio
 
 # Setup logging
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Ensure log directory exists BEFORE creating FileHandler
+Config.LOG_PATH.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format=LOG_FORMAT,
@@ -28,16 +31,16 @@ from bot.handlers.encode import EncodeHandler
 from bot.handlers.cancel import CancelHandler
 from bot.handlers.callback import CallbackHandler
 from bot.handlers.text_input import TextInputHandler
-from bot.handlers.settings import SettingsHandler  # NEW
+from bot.handlers.settings import SettingsHandler
 from bot.handlers.auth_handler import AuthHandler
 from bot.utils.safelinku import cleanup_expired_tokens
 
-# Global client untuk shutdown
+# Global client for shutdown
 app: Client = None
 
 
 def setup_signal_handlers():
-    """Handle SIGINT/SIGTERM untuk graceful shutdown."""
+    """Handle SIGINT/SIGTERM for graceful shutdown."""
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, shutting down...")
         if app:
@@ -76,15 +79,15 @@ async def main():
     setup_signal_handlers()
 
     # 5. Start
-    logger.info("🚀 Starting Encode Bot...")
+    logger.info("Starting Encode Bot...")
     await app.start()
 
-    # 6. Send startup notif ke owner (opsional)
+    # 6. Send startup notif to owner (optional)
     if Config.OWNER_ID:
         try:
             await app.send_message(
                 Config.OWNER_ID,
-                "✅ **Bot Started**\nEncode bot siap melayani grup."
+                "Bot Started\nEncode bot is ready to serve groups."
             )
         except Exception as e:
             logger.warning(f"Could not notify owner: {e}")
