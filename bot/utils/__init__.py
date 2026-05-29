@@ -1,4 +1,4 @@
-from .helpers import get_file_size, format_duration, generate_progress_bar
+from .helpers import get_file_size, format_duration, generate_progress_bar, safe_filename
 from .cleanup import cleanup_files, ensure_dirs
 from .ffmpeg import run_ffmpeg, build_ffmpeg_command
 from .auth import is_verified, verify_user, get_pending_verification_msg, get_verify_buttons
@@ -35,6 +35,7 @@ __all__ = [
     "get_file_size",
     "format_duration",
     "generate_progress_bar",
+    "safe_filename",
     "cleanup_files",
     "ensure_dirs",
     "run_ffmpeg",
