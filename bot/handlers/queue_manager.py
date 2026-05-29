@@ -15,7 +15,7 @@ class QueueManager:
     
     def __init__(self):
         # Semaphore global: max X encode bersamaan
-        self.encode_semaphore = asyncio.Semaphore(Config.MAX_CONCURRENT_ENCODE)
+        self.encode_semaphore = asyncio.Semaphore(Config.MAX_CONCURRENT_ENCODES)
         
         # Lock per user: cegah 1 user spam banyak job
         self.user_locks = {}
