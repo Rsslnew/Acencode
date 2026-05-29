@@ -1,0 +1,152 @@
+"""
+SafeLinkU integration - generate short links dengan token acak + expire.
+"""
+import json
+import logging
+import secrets
+import string
+import time
+from pathlib import Path
+from bot.config import Config
+
+logger = logging.getLogger(__name__)
+
+TOKENS_FILE = Config.BASE_DIR / "tokens_db.json"
+
+SAFELINKU_API_KEY = getattr(Config, 'SAFELINKU_API_KEY', '')
+SAFELINKU_API_URL = "https://safelinku.com/api/v1/links"
+
+# Durasi token (detik), default 24 jam = 86400 detik
+TOKEN_EXPIRE_SECONDS = getattr(Config, 'TOKEN_EXPIRE_SECONDS', 86400)
+
+
+def _load_tokens() -> dict:
+    if TOKENS_FILE.exists():
+        try:
+            with open(TOKENS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_tokens(data: dict):
+    try:
+        with open(TOKENS_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save tokens: {e}")
+
+
+def generate_token(user_id: int) -> str:
+    """Generate token acak 16 karakter untuk user."""
+    token = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+    
+    db = _load_tokens()
+    db[token] = {
+        "user_id": user_id,
+        "used": False,
+        "created_at": time.time(),
+        "expires_at": time.time() + TOKEN_EXPIRE_SECONDS,
+        "verified_at": None
+    }
+    _save_tokens(db)
+    
+    return token
+
+
+def validate_token(token: str, user_id: int) -> bool:
+    """Validasi token: cek exist, used, owner, expire."""
+    db = _load_tokens()
+    
+    if token not in db:
+        return False
+    
+    data = db[token]
+    
+    if data.get("used", False):
+        return False
+    
+    if data.get("user_id") != user_id:
+        return False
+    
+    # Cek expire
+    expires_at = data.get("expires_at", 0)
+    if time.time() > expires_at:
+        db.pop(token, None)
+        _save_tokens(db)
+        return False
+    
+    # Tandai sebagai used
+    db[token]["used"] = True
+    db[token]["verified_at"] = time.time()
+    _save_tokens(db)
+    
+    return True
+
+
+def cleanup_expired_tokens():
+    """Hapus semua token yang sudah expired (maintenance)."""
+    db = _load_tokens()
+    now = time.time()
+    expired = []
+    
+    for token, data in list(db.items()):
+        if data.get("used", False):
+            expired.append(token)
+        elif data.get("expires_at", 0) < now:
+            expired.append(token)
+    
+    for token in expired:
+        db.pop(token, None)
+    
+    if expired:
+        _save_tokens(db)
+        logger.info(f"Cleaned up {len(expired)} expired/used tokens")
+
+
+def get_safelink_url(token: str) -> str:
+    """Generate SafeLinkU URL."""
+    bot_username = getattr(Config, 'BOT_USERNAME', 'your_bot_username')
+    redirect_url = f"https://t.me/{bot_username}?start={token}"
+    
+    if SAFELINKU_API_KEY:
+        try:
+            import requests
+            resp = requests.post(
+                SAFELINKU_API_URL,
+                headers={"Authorization": f"Bearer {SAFELINKU_API_KEY}"},
+                json={"url": redirect_url}
+            )
+            if resp.status_code == 200:
+                result = resp.json()
+                return result.get("shortenedUrl", redirect_url)
+        except Exception as e:
+            logger.warning(f"SafeLinkU API failed: {e}")
+    
+    return redirect_url
+
+
+def get_verify_safelink_text(token: str) -> str:
+    """Generate pesan verify dengan safelink."""
+    hours = TOKEN_EXPIRE_SECONDS // 3600
+    mins = (TOKEN_EXPIRE_SECONDS % 3600) // 60
+    
+    if hours > 0:
+        durasi = f"{hours} jam"
+    elif mins > 0:
+        durasi = f"{mins} menit"
+    else:
+        durasi = f"{TOKEN_EXPIRE_SECONDS} detik"
+    
+    return (
+        f"🔐 **Verifikasi Diperlukan**\n\n"
+        f"Untuk menggunakan bot ini, silakan verifikasi:\n\n"
+        f"1️⃣ Klik tombol **Verify** di bawah\n"
+        f"2️⃣ Lewati iklan (tunggu 15 detik)\n"
+        f"3️⃣ Klik **Get Link** / **Continue**\n"
+        f"4️⃣ Kamu akan diarahkan kembali ke bot\n"
+        f"5️⃣ Tekan **Start** untuk verifikasi otomatis\n\n"
+        f"⏰ Token berlaku selama **{durasi}**\n"
+        f"⚠️ Token: `{token}`"
+    )
