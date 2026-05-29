@@ -1,9 +1,10 @@
 """
-Bot Entry Point - start Pyrogram client dengan reconnect logic.
+Bot Entry Point - DEBUG VERSION.
 """
 import logging
 import signal
 import sys
+import traceback
 from pathlib import Path
 from pyrogram import Client, idle
 from bot.config import Config
@@ -20,10 +21,10 @@ except ValueError as e:
 ensure_dirs()
 cleanup_old_temp(max_age_hours=24)
 
-# Setup logging (sekarang folder logs/ sudah ada)
+# Setup logging
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # DEBUG untuk verbose
     format=LOG_FORMAT,
     handlers=[
         logging.StreamHandler(sys.stdout),
@@ -32,18 +33,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# === IMPORT HANDLERS (auto-register decorators) ===
-import bot.handlers.encode
-import bot.handlers.cancel
-import bot.handlers.callback
-import bot.handlers.settings
-import bot.handlers.auth_handler
-import bot.handlers.text_input
-import bot.handlers.test_handler
-from bot.utils.safelinku import cleanup_expired_tokens
-
+# Global client
 app: Client = None
-
 
 def setup_signal_handlers():
     def signal_handler(signum, frame):
@@ -51,15 +42,13 @@ def setup_signal_handlers():
         if app:
             asyncio.create_task(app.stop())
         sys.exit(0)
-
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-
 
 async def main():
     global app
 
-    # 3. Create client
+    # Create client
     app = Client(
         "encode_bot",
         api_id=Config.API_ID,
@@ -68,6 +57,38 @@ async def main():
         workdir=str(Config.BASE_DIR / "sessions"),
     )
 
+    logger.info(f"Client created. Dispatcher groups before import: {len(app.dispatcher.groups)}")
+
+    # === IMPORT HANDLERS WITH DEBUG ===
+    logger.info("=== IMPORTING HANDLERS ===")
+
+    modules_to_import = [
+        ("bot.handlers.test_handler", "test"),
+        ("bot.handlers.encode", "encode"),
+        ("bot.handlers.cancel", "cancel"),
+        ("bot.handlers.callback", "callback"),
+        ("bot.handlers.settings", "settings"),
+        ("bot.handlers.auth_handler", "auth"),
+        ("bot.handlers.text_input", "text_input"),
+    ]
+
+    for module_name, label in modules_to_import:
+        try:
+            __import__(module_name)
+            logger.info(f"✅ [{label}] imported successfully")
+        except Exception as e:
+            logger.error(f"❌ [{label}] FAILED: {e}")
+            traceback.print_exc()
+
+    # Count handlers
+    total_handlers = 0
+    for group_num, handlers in app.dispatcher.groups.items():
+        count = len(handlers)
+        total_handlers += count
+        logger.info(f"Group {group_num}: {count} handlers")
+
+    logger.info(f"TOTAL HANDLERS REGISTERED: {total_handlers}")
+
     setup_signal_handlers()
 
     logger.info("🚀 Starting Encode Bot...")
@@ -75,10 +96,7 @@ async def main():
 
     if Config.OWNER_ID:
         try:
-            await app.send_message(
-                Config.OWNER_ID,
-                "✅ **Bot Started**\nEncode bot siap melayani grup."
-            )
+            await app.send_message(Config.OWNER_ID, "✅ **Bot Started**")
         except Exception as e:
             logger.warning(f"Could not notify owner: {e}")
 
@@ -88,7 +106,6 @@ async def main():
     logger.info("Stopping bot...")
     await app.stop()
     logger.info("Bot stopped.")
-
 
 if __name__ == "__main__":
     asyncio.run(main())
