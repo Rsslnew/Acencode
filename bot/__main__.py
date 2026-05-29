@@ -10,7 +10,17 @@ from bot.config import Config
 from bot.utils.cleanup import ensure_dirs, cleanup_old_temp
 import asyncio
 
-# Setup logging
+# === FIX: Ensure directories exist BEFORE logging setup ===
+try:
+    Config.validate()
+except ValueError as e:
+    print(f"Config error: {e}", file=sys.stderr)
+    sys.exit(1)
+
+ensure_dirs()
+cleanup_old_temp(max_age_hours=24)
+
+# Setup logging (sekarang folder logs/ sudah ada)
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +33,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # === IMPORT HANDLERS (auto-register decorators) ===
-# WAJIB import module, bukan class, agar @Client.on_message tereksekusi
 import bot.handlers.encode
 import bot.handlers.cancel
 import bot.handlers.callback
@@ -33,12 +42,10 @@ import bot.handlers.text_input
 import bot.handlers.test_handler
 from bot.utils.safelinku import cleanup_expired_tokens
 
-# Global client untuk shutdown
 app: Client = None
 
 
 def setup_signal_handlers():
-    """Handle SIGINT/SIGTERM untuk graceful shutdown."""
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, shutting down...")
         if app:
@@ -50,19 +57,7 @@ def setup_signal_handlers():
 
 
 async def main():
-    """Main entry point."""
     global app
-
-    # 1. Validate config
-    try:
-        Config.validate()
-    except ValueError as e:
-        logger.error(f"Config error: {e}")
-        sys.exit(1)
-
-    # 2. Ensure directories
-    ensure_dirs()
-    cleanup_old_temp(max_age_hours=24)
 
     # 3. Create client
     app = Client(
@@ -73,14 +68,11 @@ async def main():
         workdir=str(Config.BASE_DIR / "sessions"),
     )
 
-    # 4. Setup signal handlers
     setup_signal_handlers()
 
-    # 5. Start
     logger.info("🚀 Starting Encode Bot...")
     await app.start()
 
-    # 6. Send startup notif ke owner
     if Config.OWNER_ID:
         try:
             await app.send_message(
@@ -93,7 +85,6 @@ async def main():
     logger.info("Bot is running. Press Ctrl+C to stop.")
     await idle()
 
-    # 7. Shutdown
     logger.info("Stopping bot...")
     await app.stop()
     logger.info("Bot stopped.")
