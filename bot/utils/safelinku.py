@@ -75,6 +75,10 @@ def verify_token(user_id: int, token: str) -> bool:
     return True
 
 
+# Alias for backward compatibility
+validate_token = verify_token
+
+
 def is_token_valid(user_id: int) -> bool:
     """Check if user has a valid unused token."""
     tokens = _load_tokens()
@@ -214,3 +218,24 @@ async def get_verification_link(user_id: int, username: str = None) -> str:
 
     logger.error(f"Failed to create shortlink: {result.get('error')}")
     return None
+
+
+def get_verify_safelink_text(user_id: int, username: str = None) -> str:
+    """Get verification message text with SafeLinkU link."""
+    name = username or f"User_{user_id}"
+    return (
+        f"Hey @{name},\n\n"
+        f"Please verify yourself to use this bot!\n"
+        f"Click the button below to verify."
+    )
+
+
+def get_safelink_url(user_id: int, username: str = None) -> str:
+    """Get or create SafeLinkU verification URL for user."""
+    # This is a synchronous wrapper - in production, use async get_verification_link
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(get_verification_link(user_id, username))
+    except Exception:
+        return None
