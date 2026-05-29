@@ -12,6 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Config:
+    # Base directory for all paths
+    BASE_DIR = BASE_DIR
+
     # Telegram
     API_ID = int(os.getenv("API_ID", 0))
     API_HASH = os.getenv("API_HASH", "")
