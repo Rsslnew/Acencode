@@ -8,7 +8,7 @@ from pathlib import Path
 from pyrogram import Client, idle
 from bot.config import Config
 from bot.utils.cleanup import ensure_dirs, cleanup_old_temp
-from bot.core import app as core_app  # Import reference
+import bot.core as core  # Import module, bukan variable
 import asyncio
 
 # Ensure directories exist BEFORE logging setup
@@ -53,9 +53,8 @@ async def main():
         workdir=str(Config.BASE_DIR / "sessions"),
     )
 
-    # Set global reference
-    core_app.__dict__.update(app.__dict__)
-    core_app.__class__ = app.__class__
+    # Set global reference - assign instance ke module variable
+    core.app = app
 
     logger.info("Client created, importing handlers...")
 
