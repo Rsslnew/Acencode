@@ -38,6 +38,9 @@ class Config:
     SAFELINKU_API_KEY = os.getenv("SAFELINKU_API_KEY", "")
     BYPASS_TARGET_URL = os.getenv("BYPASS_TARGET_URL", "https://t.me/your_channel")
     TOKEN_EXPIRE_SECONDS = int(os.getenv("TOKEN_EXPIRE_SECONDS", 86400))
+    # config.py - ditambah
+    TEMP_PATH = Path(os.getenv("TEMP_PATH", BASE_DIR / "temp"))
+
 
     # Paths
     DOWNLOAD_PATH = Path(os.getenv("DOWNLOAD_PATH", BASE_DIR / "downloads"))
