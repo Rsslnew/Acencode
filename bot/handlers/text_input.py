@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from pyrogram import Client, filters
-from pyrogram.types import Message, CallbackQuery
+from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.utils.user_settings import get_user_settings
 
 logger = logging.getLogger(__name__)
@@ -208,382 +208,386 @@ def get_input_state(user_id: int) -> dict:
     return state
 
 
-class TextInputHandler:
-    """Handle text input replies and photo uploads for settings menu."""
+def _build_cancel_input_kb():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Cancel", callback_data="cancel_input")]
+    ])
 
-    @staticmethod
-    @Client.on_message(filters.text & filters.private)
-    async def handle_text_input(client: Client, message: Message):
-        """Handle text messages in private chat (for settings input)."""
-        user_id = message.from_user.id
-        state = get_input_state(user_id)
 
-        if not state:
-            await message.reply(
-                "No active input session.\n"
-                "Use /settings in a group to configure the bot."
-            )
-            return
+# ============ MESSAGE HANDLERS ============
 
-        action = state["action"]
+@Client.on_message(filters.text & filters.private)
+async def handle_text_input(client: Client, message: Message):
+    """Handle text messages in private chat (for settings input)."""
+    user_id = message.from_user.id
+    state = get_input_state(user_id)
 
-        # Handle photo-based actions (should not come here)
-        if action in ("set_image_watermark", "set_custom_thumbnail"):
-            await message.reply(
-                "Please send a photo, not text.\n"
-                "Or send /cancel to cancel."
-            )
-            return
-
-        config = TEXT_ACTIONS.get(action)
-
-        if not config:
-            logger.error(f"Unknown action: {action}")
-            clear_input_state(user_id)
-            return
-
-        value = message.text.strip()
-
-        # Validate input
-        if not config["validate"](value):
-            await message.reply(
-                f"{config['error']}\n\n"
-                f"{config['prompt']}"
-            )
-            return
-
-        # Apply setting
-        settings = get_user_settings(user_id)
-        try:
-            config["setter"](settings, value)
-            success_msg = config["success"].format(value)
-            await message.reply(f"{success_msg}")
-        except Exception as e:
-            logger.error(f"Failed to set {action}: {e}")
-            await message.reply(f"Failed to update setting.\nError: {str(e)}")
-            return
-        finally:
-            clear_input_state(user_id)
-
-        # Show back button to return to menu
-        from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    if not state:
         await message.reply(
-            "Tap Back to return to settings menu.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Back", callback_data=config["menu_callback"])]
-            ])
+            "No active input session.\n"
+            "Use /settings in a group to configure the bot."
         )
+        return
 
-    @staticmethod
-    @Client.on_message(filters.photo & filters.private)
-    async def handle_photo_input(client: Client, message: Message):
-        """Handle photo uploads in private chat (for watermark and thumbnail)."""
-        user_id = message.from_user.id
-        state = get_input_state(user_id)
+    action = state["action"]
 
-        if not state:
-            await message.reply(
-                "No active photo session.\n"
-                "Go to settings first to upload a photo."
-            )
-            return
-
-        action = state["action"]
-
-        if action == "set_image_watermark":
-            await _handle_image_watermark_photo(client, message, user_id)
-        elif action == "set_custom_thumbnail":
-            await _handle_custom_thumbnail_photo(client, message, user_id)
-        else:
-            await message.reply(
-                "Unexpected photo upload.\n"
-                "Please use the settings menu to upload photos."
-            )
-            clear_input_state(user_id)
-
-    # --- Callback Handlers for Text Input ---
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_crf:set$"))
-    async def cb_set_crf(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_crf", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_crf"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
+    # Handle photo-based actions (should not come here)
+    if action in ("set_image_watermark", "set_custom_thumbnail"):
+        await message.reply(
+            "Please send a photo, not text.\n"
+            "Or send /cancel to cancel."
         )
+        return
 
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_vb:set$"))
-    async def cb_set_vbitrate(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_vbitrate", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_vbitrate"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
+    config = TEXT_ACTIONS.get(action)
 
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:set_cap$"))
-    async def cb_set_caption(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_caption", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_caption"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:split_size$"))
-    async def cb_set_split_size(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_split_size", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_split_size"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:split_dur$"))
-    async def cb_set_split_duration(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_split_duration", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_split_duration"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:up_chat$"))
-    async def cb_set_upload_chat(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_upload_chat", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_upload_chat"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_gd:gdrive_id$"))
-    async def cb_set_gdrive_id(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_gdrive_id", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_gdrive_id"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_gd:index$"))
-    async def cb_set_index_url(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_index_url", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_index_url"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_wm:text$"))
-    async def cb_set_text_watermark(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_text_watermark", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_text_watermark"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_wm:image$"))
-    async def cb_set_image_watermark(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_image_watermark", callback.message.id)
-        await callback.message.edit_text(
-            "**Image Watermark**\n\n"
-            "Send a photo to the bot in private chat to set as watermark.\n"
-            "Or send 'disable' in text to remove image watermark.",
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:thumb$"))
-    async def cb_set_thumbnail(client: Client, callback: CallbackQuery):
-        """Set input state for custom thumbnail upload."""
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_custom_thumbnail", callback.message.id)
-
-        from bot.utils.thumbnail import has_custom_thumbnail
-        has_thumb = has_custom_thumbnail(user_id)
-        current = "Exists" if has_thumb else "Not set"
-
-        text = (
-            f"**Set Thumbnail**\n\n"
-            f"Current: `{current}`\n\n"
-            f"Send a photo to the bot in private chat to set as custom thumbnail.\n"
-            f"Recommended size: 320x180 (16:9) or any square image."
-        )
-
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Delete Thumbnail", callback_data="sett_tg:del_thumb")],
-            [InlineKeyboardButton("Back", callback_data="sett:tg_tools")],
-            [InlineKeyboardButton("Cancel", callback_data="cancel_input")],
-        ])
-
-        await callback.message.edit_text(text, reply_markup=buttons)
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:del_thumb$"))
-    async def cb_delete_thumbnail(client: Client, callback: CallbackQuery):
-        """Delete user's custom thumbnail."""
-        user_id = callback.from_user.id
-        from bot.utils.thumbnail import delete_custom_thumbnail
-
-        if delete_custom_thumbnail(user_id):
-            await callback.answer("Custom thumbnail deleted!")
-        else:
-            await callback.answer("No custom thumbnail to delete.")
-
-        from bot.handlers.settings import SettingsHandler
-        await SettingsHandler.cb_tg_tools(client, callback)
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tg:thumb_layout$"))
-    async def cb_thumbnail_layout(client: Client, callback: CallbackQuery):
-        """Show thumbnail layout options."""
-        user_id = callback.from_user.id
-        settings = get_user_settings(user_id)
-        current = settings.thumbnail_layout or "default"
-
-        text = (
-            f"**Thumbnail Layout**\n\n"
-            f"Current: `{current}`"
-        )
-
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Default", callback_data="sett_tl:default")],
-            [InlineKeyboardButton("Square Crop", callback_data="sett_tl:square")],
-            [InlineKeyboardButton("Wide Crop", callback_data="sett_tl:wide")],
-            [InlineKeyboardButton("Back", callback_data="sett:tg_tools")],
-            [InlineKeyboardButton("Cancel", callback_data="cancel_input")],
-        ])
-
-        await callback.message.edit_text(text, reply_markup=buttons)
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_tl:(.+)$"))
-    async def cb_set_thumbnail_layout(client: Client, callback: CallbackQuery):
-        """Set thumbnail layout."""
-        layout = callback.data.split(":")[1]
-        user_id = callback.from_user.id
-        settings = get_user_settings(user_id)
-        settings.thumbnail_layout = layout
-
-        await callback.answer(f"Thumbnail layout set to {layout}!")
-
-        from bot.handlers.settings import SettingsHandler
-        await SettingsHandler.cb_tg_tools(client, callback)
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_meta:vtitle$"))
-    async def cb_set_video_title(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_video_title", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_video_title"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_meta:vauthor$"))
-    async def cb_set_video_author(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_video_author", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_video_author"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_meta:atitle$"))
-    async def cb_set_audio_title(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_audio_title", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_audio_title"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_meta:stitle$"))
-    async def cb_set_subtitle_title(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_subtitle_title", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_subtitle_title"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_ex:prefix$"))
-    async def cb_set_prefix(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_prefix", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_prefix"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_ex:suffix$"))
-    async def cb_set_suffix(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_suffix", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_suffix"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_ar:template$"))
-    async def cb_set_ar_template(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_autorename_template", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_autorename_template"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett_ee:set$"))
-    async def cb_set_excluded_ext(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "set_excluded_extensions", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["set_excluded_extensions"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^sett:import$"))
-    async def cb_import_settings(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
-        set_input_state(user_id, "import_settings", callback.message.id)
-        await callback.message.edit_text(
-            TEXT_ACTIONS["import_settings"]["prompt"],
-            reply_markup=_build_cancel_input_kb()
-        )
-
-    @staticmethod
-    @Client.on_callback_query(filters.regex(r"^cancel_input$"))
-    async def cb_cancel_input(client: Client, callback: CallbackQuery):
-        user_id = callback.from_user.id
+    if not config:
+        logger.error(f"Unknown action: {action}")
         clear_input_state(user_id)
-        await callback.answer("Input cancelled.")
-        from bot.handlers.settings import SettingsHandler
-        await SettingsHandler.cb_back_main(client, callback)
+        return
+
+    value = message.text.strip()
+
+    # Validate input
+    if not config["validate"](value):
+        await message.reply(
+            f"{config['error']}\n\n"
+            f"{config['prompt']}"
+        )
+        return
+
+    # Apply setting
+    settings = get_user_settings(user_id)
+    try:
+        config["setter"](settings, value)
+        success_msg = config["success"].format(value)
+        await message.reply(f"{success_msg}")
+    except Exception as e:
+        logger.error(f"Failed to set {action}: {e}")
+        await message.reply(f"Failed to update setting.\nError: {str(e)}")
+        return
+    finally:
+        clear_input_state(user_id)
+
+    # Show back button to return to menu
+    await message.reply(
+        "Tap Back to return to settings menu.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Back", callback_data=config["menu_callback"])]
+        ])
+    )
 
 
-# === Photo Handlers ===
+@Client.on_message(filters.photo & filters.private)
+async def handle_photo_input(client: Client, message: Message):
+    """Handle photo uploads in private chat (for watermark and thumbnail)."""
+    user_id = message.from_user.id
+    state = get_input_state(user_id)
+
+    if not state:
+        await message.reply(
+            "No active photo session.\n"
+            "Go to settings first to upload a photo."
+        )
+        return
+
+    action = state["action"]
+
+    if action == "set_image_watermark":
+        await _handle_image_watermark_photo(client, message, user_id)
+    elif action == "set_custom_thumbnail":
+        await _handle_custom_thumbnail_photo(client, message, user_id)
+    else:
+        await message.reply(
+            "Unexpected photo upload.\n"
+            "Please use the settings menu to upload photos."
+        )
+        clear_input_state(user_id)
+
+
+# ============ CALLBACK HANDLERS ============
+
+@Client.on_callback_query(filters.regex(r"^sett_crf:set$"))
+async def cb_set_crf(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_crf", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_crf"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_vb:set$"))
+async def cb_set_vbitrate(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_vbitrate", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_vbitrate"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:set_cap$"))
+async def cb_set_caption(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_caption", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_caption"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:split_size$"))
+async def cb_set_split_size(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_split_size", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_split_size"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:split_dur$"))
+async def cb_set_split_duration(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_split_duration", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_split_duration"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:up_chat$"))
+async def cb_set_upload_chat(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_upload_chat", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_upload_chat"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_gd:gdrive_id$"))
+async def cb_set_gdrive_id(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_gdrive_id", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_gdrive_id"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_gd:index$"))
+async def cb_set_index_url(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_index_url", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_index_url"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_wm:text$"))
+async def cb_set_text_watermark(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_text_watermark", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_text_watermark"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_wm:image$"))
+async def cb_set_image_watermark(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_image_watermark", callback.message.id)
+    await callback.message.edit_text(
+        "**Image Watermark**\n\n"
+        "Send a photo to the bot in private chat to set as watermark.\n"
+        "Or send 'disable' in text to remove image watermark.",
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:thumb$"))
+async def cb_set_thumbnail(client: Client, callback: CallbackQuery):
+    """Set input state for custom thumbnail upload."""
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_custom_thumbnail", callback.message.id)
+
+    from bot.utils.thumbnail import has_custom_thumbnail
+    has_thumb = has_custom_thumbnail(user_id)
+    current = "Exists" if has_thumb else "Not set"
+
+    text = (
+        f"**Set Thumbnail**\n\n"
+        f"Current: `{current}`\n\n"
+        f"Send a photo to the bot in private chat to set as custom thumbnail.\n"
+        f"Recommended size: 320x180 (16:9) or any square image."
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Delete Thumbnail", callback_data="sett_tg:del_thumb")],
+        [InlineKeyboardButton("Back", callback_data="sett:tg_tools")],
+        [InlineKeyboardButton("Cancel", callback_data="cancel_input")],
+    ])
+
+    await callback.message.edit_text(text, reply_markup=buttons)
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:del_thumb$"))
+async def cb_delete_thumbnail(client: Client, callback: CallbackQuery):
+    """Delete user's custom thumbnail."""
+    user_id = callback.from_user.id
+    from bot.utils.thumbnail import delete_custom_thumbnail
+
+    if delete_custom_thumbnail(user_id):
+        await callback.answer("Custom thumbnail deleted!")
+    else:
+        await callback.answer("No custom thumbnail to delete.")
+
+    # Reuse tg_tools callback from settings module
+    from bot.handlers.settings import cb_tg_tools
+    await cb_tg_tools(client, callback)
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tg:thumb_layout$"))
+async def cb_thumbnail_layout(client: Client, callback: CallbackQuery):
+    """Show thumbnail layout options."""
+    user_id = callback.from_user.id
+    settings = get_user_settings(user_id)
+    current = settings.thumbnail_layout or "default"
+
+    text = (
+        f"**Thumbnail Layout**\n\n"
+        f"Current: `{current}`"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Default", callback_data="sett_tl:default")],
+        [InlineKeyboardButton("Square Crop", callback_data="sett_tl:square")],
+        [InlineKeyboardButton("Wide Crop", callback_data="sett_tl:wide")],
+        [InlineKeyboardButton("Back", callback_data="sett:tg_tools")],
+        [InlineKeyboardButton("Cancel", callback_data="cancel_input")],
+    ])
+
+    await callback.message.edit_text(text, reply_markup=buttons)
+
+
+@Client.on_callback_query(filters.regex(r"^sett_tl:(.+)$"))
+async def cb_set_thumbnail_layout(client: Client, callback: CallbackQuery):
+    """Set thumbnail layout."""
+    layout = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+    settings = get_user_settings(user_id)
+    settings.thumbnail_layout = layout
+
+    await callback.answer(f"Thumbnail layout set to {layout}!")
+
+    from bot.handlers.settings import cb_tg_tools
+    await cb_tg_tools(client, callback)
+
+
+@Client.on_callback_query(filters.regex(r"^sett_meta:vtitle$"))
+async def cb_set_video_title(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_video_title", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_video_title"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_meta:vauthor$"))
+async def cb_set_video_author(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_video_author", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_video_author"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_meta:atitle$"))
+async def cb_set_audio_title(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_audio_title", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_audio_title"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_meta:stitle$"))
+async def cb_set_subtitle_title(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_subtitle_title", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_subtitle_title"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_ex:prefix$"))
+async def cb_set_prefix(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_prefix", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_prefix"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_ex:suffix$"))
+async def cb_set_suffix(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_suffix", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_suffix"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_ar:template$"))
+async def cb_set_ar_template(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_autorename_template", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_autorename_template"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett_ee:set$"))
+async def cb_set_excluded_ext(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "set_excluded_extensions", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["set_excluded_extensions"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sett:import$"))
+async def cb_import_settings(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    set_input_state(user_id, "import_settings", callback.message.id)
+    await callback.message.edit_text(
+        TEXT_ACTIONS["import_settings"]["prompt"],
+        reply_markup=_build_cancel_input_kb()
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^cancel_input$"))
+async def cb_cancel_input(client: Client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    clear_input_state(user_id)
+    await callback.answer("Input cancelled.")
+    from bot.handlers.settings import cb_back_main
+    await cb_back_main(client, callback)
+
+
+# ============ PHOTO HANDLERS ============
 
 async def _handle_image_watermark_photo(client, message, user_id):
     """Handle photo upload for image watermark."""
@@ -609,7 +613,6 @@ async def _handle_image_watermark_photo(client, message, user_id):
     finally:
         clear_input_state(user_id)
 
-    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     await message.reply(
         "Tap Back to return to settings menu.",
         reply_markup=InlineKeyboardMarkup([
@@ -642,17 +645,9 @@ async def _handle_custom_thumbnail_photo(client, message, user_id):
     finally:
         clear_input_state(user_id)
 
-    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     await message.reply(
         "Tap Back to return to settings menu.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Back", callback_data="sett:tg_tools")]
         ])
     )
-
-
-def _build_cancel_input_kb():
-    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Cancel", callback_data="cancel_input")]
-    ])
