@@ -256,18 +256,13 @@ class EncodeHandler:
                 total_time = time.time() - tracker.start_time
 
                 caption = (
-                    f"Compressed Video
-"
-                    f"{output_size}
-"
-                    f"{saved_text}
-"
+                    f"Compressed Video"
+                    f"{output_size}"
+                    f"{saved_text}"
                     f"Time: {format_duration(total_time)}"
                 )
                 if settings.caption:
-                    caption += f"
-
-{settings.caption}"
+                    caption += f"{settings.caption}"
 
                 upload_kwargs = {
                     "caption": caption,
@@ -310,17 +305,12 @@ class EncodeHandler:
                 except Exception:
                     pass
 
-                notif = f"@{username} - File compressed!
-{output_size} (from {input_size})
-"
+                notif = f"@{username} - File compressed!{output_size} (from {input_size})"
                 if saved_mb > 0:
-                    notif += f"Saved: {saved_mb:.0f}MB
-"
-                notif += f"Time: {format_duration(total_time)}
-Check DM for download"
+                    notif += f"Saved: {saved_mb:.0f}MB"
+                notif += f"Time: {format_duration(total_time)}Check DM for download"
                 if screenshot_paths:
-                    notif += f"
-{len(screenshot_paths)} screenshots sent"
+                    notif += f"{len(screenshot_paths)} screenshots sent"
 
                 await client.send_message(chat_id=chat_id, text=notif)
 
