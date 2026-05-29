@@ -1,17 +1,17 @@
 """
-Bot Entry Point - DEBUG VERSION.
+Bot Entry Point - FIXED: proper handler registration.
 """
 import logging
 import signal
 import sys
-import traceback
 from pathlib import Path
 from pyrogram import Client, idle
 from bot.config import Config
 from bot.utils.cleanup import ensure_dirs, cleanup_old_temp
+from bot.core import app as core_app  # Import reference
 import asyncio
 
-# === FIX: Ensure directories exist BEFORE logging setup ===
+# Ensure directories exist BEFORE logging setup
 try:
     Config.validate()
 except ValueError as e:
@@ -24,7 +24,7 @@ cleanup_old_temp(max_age_hours=24)
 # Setup logging
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(
-    level=logging.DEBUG,  # DEBUG untuk verbose
+    level=logging.INFO,
     format=LOG_FORMAT,
     handlers=[
         logging.StreamHandler(sys.stdout),
@@ -33,21 +33,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global client
-app: Client = None
 
-def setup_signal_handlers():
+def setup_signal_handlers(app):
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, shutting down...")
-        if app:
-            asyncio.create_task(app.stop())
+        asyncio.create_task(app.stop())
         sys.exit(0)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-async def main():
-    global app
 
+async def main():
     # Create client
     app = Client(
         "encode_bot",
@@ -57,39 +53,29 @@ async def main():
         workdir=str(Config.BASE_DIR / "sessions"),
     )
 
-    logger.info(f"Client created. Dispatcher groups before import: {len(app.dispatcher.groups)}")
+    # Set global reference
+    core_app.__dict__.update(app.__dict__)
+    core_app.__class__ = app.__class__
 
-    # === IMPORT HANDLERS WITH DEBUG ===
-    logger.info("=== IMPORTING HANDLERS ===")
+    logger.info("Client created, importing handlers...")
 
-    modules_to_import = [
-        ("bot.handlers.test_handler", "test"),
-        ("bot.handlers.encode", "encode"),
-        ("bot.handlers.cancel", "cancel"),
-        ("bot.handlers.callback", "callback"),
-        ("bot.handlers.settings", "settings"),
-        ("bot.handlers.auth_handler", "auth"),
-        ("bot.handlers.text_input", "text_input"),
-    ]
-
-    for module_name, label in modules_to_import:
-        try:
-            __import__(module_name)
-            logger.info(f"✅ [{label}] imported successfully")
-        except Exception as e:
-            logger.error(f"❌ [{label}] FAILED: {e}")
-            traceback.print_exc()
+    # Import handlers AFTER app is created
+    import bot.handlers.encode
+    import bot.handlers.cancel
+    import bot.handlers.callback
+    import bot.handlers.settings
+    import bot.handlers.auth_handler
+    import bot.handlers.text_input
+    import bot.handlers.test_handler
 
     # Count handlers
-    total_handlers = 0
+    total = 0
     for group_num, handlers in app.dispatcher.groups.items():
-        count = len(handlers)
-        total_handlers += count
-        logger.info(f"Group {group_num}: {count} handlers")
+        total += len(handlers)
+        logger.info(f"Group {group_num}: {len(handlers)} handlers")
+    logger.info(f"TOTAL HANDLERS: {total}")
 
-    logger.info(f"TOTAL HANDLERS REGISTERED: {total_handlers}")
-
-    setup_signal_handlers()
+    setup_signal_handlers(app)
 
     logger.info("🚀 Starting Encode Bot...")
     await app.start()
@@ -106,6 +92,7 @@ async def main():
     logger.info("Stopping bot...")
     await app.stop()
     logger.info("Bot stopped.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
