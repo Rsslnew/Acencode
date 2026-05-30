@@ -498,9 +498,6 @@ async def cb_set_audio_title(client, callback: CallbackQuery):
 async def cb_set_subtitle_title(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_subtitle_title", callback.message.id)
-    await Lanjutan `text_input.py` (terputus):
-
-```python
     await callback.message.edit_text(
         TEXT_ACTIONS["set_subtitle_title"]["prompt"],
         reply_markup=_build_cancel_input_kb()
