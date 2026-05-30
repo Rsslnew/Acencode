@@ -1,13 +1,10 @@
 """
-Text Input Handler for Settings Menu.
-Handles reply-based input for CRF, bitrate, caption, prefix, suffix, etc.
-Also handles photo uploads for image watermark and custom thumbnail.
+Text Input Handler for Settings Menu - Module-level functions.
 """
 import asyncio
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.utils.user_settings import get_user_settings
 
@@ -216,8 +213,7 @@ def _build_cancel_input_kb():
 
 # ============ MESSAGE HANDLERS ============
 
-@Client.on_message(filters.text & filters.private)
-async def handle_text_input(client: Client, message: Message):
+async def handle_text_input(client, message: Message):
     """Handle text messages in private chat (for settings input)."""
     user_id = message.from_user.id
     state = get_input_state(user_id)
@@ -278,8 +274,7 @@ async def handle_text_input(client: Client, message: Message):
     )
 
 
-@Client.on_message(filters.photo & filters.private)
-async def handle_photo_input(client: Client, message: Message):
+async def handle_photo_input(client, message: Message):
     """Handle photo uploads in private chat (for watermark and thumbnail)."""
     user_id = message.from_user.id
     state = get_input_state(user_id)
@@ -307,8 +302,7 @@ async def handle_photo_input(client: Client, message: Message):
 
 # ============ CALLBACK HANDLERS ============
 
-@Client.on_callback_query(filters.regex(r"^sett_crf:set$"))
-async def cb_set_crf(client: Client, callback: CallbackQuery):
+async def cb_set_crf(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_crf", callback.message.id)
     await callback.message.edit_text(
@@ -317,8 +311,7 @@ async def cb_set_crf(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_vb:set$"))
-async def cb_set_vbitrate(client: Client, callback: CallbackQuery):
+async def cb_set_vbitrate(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_vbitrate", callback.message.id)
     await callback.message.edit_text(
@@ -327,8 +320,7 @@ async def cb_set_vbitrate(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:set_cap$"))
-async def cb_set_caption(client: Client, callback: CallbackQuery):
+async def cb_set_caption(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_caption", callback.message.id)
     await callback.message.edit_text(
@@ -337,8 +329,7 @@ async def cb_set_caption(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:split_size$"))
-async def cb_set_split_size(client: Client, callback: CallbackQuery):
+async def cb_set_split_size(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_split_size", callback.message.id)
     await callback.message.edit_text(
@@ -347,8 +338,7 @@ async def cb_set_split_size(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:split_dur$"))
-async def cb_set_split_duration(client: Client, callback: CallbackQuery):
+async def cb_set_split_duration(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_split_duration", callback.message.id)
     await callback.message.edit_text(
@@ -357,8 +347,7 @@ async def cb_set_split_duration(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:up_chat$"))
-async def cb_set_upload_chat(client: Client, callback: CallbackQuery):
+async def cb_set_upload_chat(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_upload_chat", callback.message.id)
     await callback.message.edit_text(
@@ -367,8 +356,7 @@ async def cb_set_upload_chat(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_gd:gdrive_id$"))
-async def cb_set_gdrive_id(client: Client, callback: CallbackQuery):
+async def cb_set_gdrive_id(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_gdrive_id", callback.message.id)
     await callback.message.edit_text(
@@ -377,8 +365,7 @@ async def cb_set_gdrive_id(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_gd:index$"))
-async def cb_set_index_url(client: Client, callback: CallbackQuery):
+async def cb_set_index_url(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_index_url", callback.message.id)
     await callback.message.edit_text(
@@ -387,8 +374,7 @@ async def cb_set_index_url(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_wm:text$"))
-async def cb_set_text_watermark(client: Client, callback: CallbackQuery):
+async def cb_set_text_watermark(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_text_watermark", callback.message.id)
     await callback.message.edit_text(
@@ -397,8 +383,7 @@ async def cb_set_text_watermark(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_wm:image$"))
-async def cb_set_image_watermark(client: Client, callback: CallbackQuery):
+async def cb_set_image_watermark(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_image_watermark", callback.message.id)
     await callback.message.edit_text(
@@ -409,8 +394,7 @@ async def cb_set_image_watermark(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:thumb$"))
-async def cb_set_thumbnail(client: Client, callback: CallbackQuery):
+async def cb_set_thumbnail(client, callback: CallbackQuery):
     """Set input state for custom thumbnail upload."""
     user_id = callback.from_user.id
     set_input_state(user_id, "set_custom_thumbnail", callback.message.id)
@@ -435,8 +419,7 @@ async def cb_set_thumbnail(client: Client, callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:del_thumb$"))
-async def cb_delete_thumbnail(client: Client, callback: CallbackQuery):
+async def cb_delete_thumbnail(client, callback: CallbackQuery):
     """Delete user's custom thumbnail."""
     user_id = callback.from_user.id
     from bot.utils.thumbnail import delete_custom_thumbnail
@@ -446,13 +429,11 @@ async def cb_delete_thumbnail(client: Client, callback: CallbackQuery):
     else:
         await callback.answer("No custom thumbnail to delete.")
 
-    # Reuse tg_tools callback from settings module
     from bot.handlers.settings import cb_tg_tools
     await cb_tg_tools(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:thumb_layout$"))
-async def cb_thumbnail_layout(client: Client, callback: CallbackQuery):
+async def cb_thumbnail_layout(client, callback: CallbackQuery):
     """Show thumbnail layout options."""
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -474,8 +455,7 @@ async def cb_thumbnail_layout(client: Client, callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tl:(.+)$"))
-async def cb_set_thumbnail_layout(client: Client, callback: CallbackQuery):
+async def cb_set_thumbnail_layout(client, callback: CallbackQuery):
     """Set thumbnail layout."""
     layout = callback.data.split(":")[1]
     user_id = callback.from_user.id
@@ -488,8 +468,7 @@ async def cb_set_thumbnail_layout(client: Client, callback: CallbackQuery):
     await cb_tg_tools(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_meta:vtitle$"))
-async def cb_set_video_title(client: Client, callback: CallbackQuery):
+async def cb_set_video_title(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_video_title", callback.message.id)
     await callback.message.edit_text(
@@ -498,8 +477,7 @@ async def cb_set_video_title(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_meta:vauthor$"))
-async def cb_set_video_author(client: Client, callback: CallbackQuery):
+async def cb_set_video_author(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_video_author", callback.message.id)
     await callback.message.edit_text(
@@ -508,8 +486,7 @@ async def cb_set_video_author(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_meta:atitle$"))
-async def cb_set_audio_title(client: Client, callback: CallbackQuery):
+async def cb_set_audio_title(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_audio_title", callback.message.id)
     await callback.message.edit_text(
@@ -518,18 +495,19 @@ async def cb_set_audio_title(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_meta:stitle$"))
-async def cb_set_subtitle_title(client: Client, callback: CallbackQuery):
+async def cb_set_subtitle_title(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_subtitle_title", callback.message.id)
+    await Lanjutan `text_input.py` (terputus):
+
+```python
     await callback.message.edit_text(
         TEXT_ACTIONS["set_subtitle_title"]["prompt"],
         reply_markup=_build_cancel_input_kb()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ex:prefix$"))
-async def cb_set_prefix(client: Client, callback: CallbackQuery):
+async def cb_set_prefix(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_prefix", callback.message.id)
     await callback.message.edit_text(
@@ -538,8 +516,7 @@ async def cb_set_prefix(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ex:suffix$"))
-async def cb_set_suffix(client: Client, callback: CallbackQuery):
+async def cb_set_suffix(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_suffix", callback.message.id)
     await callback.message.edit_text(
@@ -548,8 +525,7 @@ async def cb_set_suffix(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ar:template$"))
-async def cb_set_ar_template(client: Client, callback: CallbackQuery):
+async def cb_set_ar_template(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_autorename_template", callback.message.id)
     await callback.message.edit_text(
@@ -558,8 +534,7 @@ async def cb_set_ar_template(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ee:set$"))
-async def cb_set_excluded_ext(client: Client, callback: CallbackQuery):
+async def cb_set_excluded_ext(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "set_excluded_extensions", callback.message.id)
     await callback.message.edit_text(
@@ -568,8 +543,7 @@ async def cb_set_excluded_ext(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett:import$"))
-async def cb_import_settings(client: Client, callback: CallbackQuery):
+async def cb_import_settings(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     set_input_state(user_id, "import_settings", callback.message.id)
     await callback.message.edit_text(
@@ -578,8 +552,7 @@ async def cb_import_settings(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^cancel_input$"))
-async def cb_cancel_input(client: Client, callback: CallbackQuery):
+async def cb_cancel_input(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     clear_input_state(user_id)
     await callback.answer("Input cancelled.")

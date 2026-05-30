@@ -1,17 +1,15 @@
 """
-Auth Handler v3 - Module-level functions for Pyrogram.
+Auth Handler v3 - Module-level functions, no decorators.
 """
 import logging
-from pyrogram import Client, filters
-from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import CallbackQuery
 from bot.utils.auth import verify_user, is_verified
-from bot.utils.safelinku import generate_token, verify_token, get_verify_safelink_text, get_verification_link
+from bot.utils.safelinku import generate_token, verify_token, get_verify_safelink_text, get_verification_link, store_token
 
 logger = logging.getLogger(__name__)
 
 
-@Client.on_callback_query(filters.regex(r"^verify_me$"))
-async def verify_callback(client: Client, callback: CallbackQuery):
+async def verify_callback(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     username = callback.from_user.username or callback.from_user.first_name
 
@@ -26,14 +24,14 @@ async def verify_callback(client: Client, callback: CallbackQuery):
             pass
         return
 
-    # Generate token acak
     token = generate_token()
-    store_token(user_id, token)  # store di safelinku.py
+    store_token(user_id, token)
     safelink_url = await get_verification_link(user_id, username)
 
     await callback.answer("Link verifikasi dibuat!", show_alert=False)
 
     try:
+        from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         await callback.message.edit_text(
             get_verify_safelink_text(user_id, username),
             reply_markup=InlineKeyboardMarkup([
@@ -46,8 +44,7 @@ async def verify_callback(client: Client, callback: CallbackQuery):
         logger.error(f"Failed to edit verify message: {e}")
 
 
-@Client.on_callback_query(filters.regex(r"^refresh_token$"))
-async def refresh_token_callback(client: Client, callback: CallbackQuery):
+async def refresh_token_callback(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     username = callback.from_user.username or callback.from_user.first_name
 
@@ -62,6 +59,7 @@ async def refresh_token_callback(client: Client, callback: CallbackQuery):
     await callback.answer("Token baru dibuat!", show_alert=False)
 
     try:
+        from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         await callback.message.edit_text(
             get_verify_safelink_text(user_id, username),
             reply_markup=InlineKeyboardMarkup([
@@ -74,13 +72,11 @@ async def refresh_token_callback(client: Client, callback: CallbackQuery):
         logger.error(f"Failed to refresh token: {e}")
 
 
-@Client.on_message(filters.private & filters.command("start"))
-async def start_command(client: Client, message):
+async def start_command(client, message):
     """Handle /start <token> dari SafeLinkU redirect."""
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
 
-    # Cek apakah sudah verified
     if is_verified(user_id):
         await message.reply(
             f"✅ **@{username} sudah verified!**\n\n"
@@ -89,7 +85,6 @@ async def start_command(client: Client, message):
         )
         return
 
-    # Parse token dari command
     args = message.text.split()
     if len(args) < 2:
         await message.reply(
@@ -104,7 +99,6 @@ async def start_command(client: Client, message):
 
     token = args[1]
 
-    # Validasi token
     if verify_token(user_id, token):
         verify_user(user_id, username)
         await message.reply(

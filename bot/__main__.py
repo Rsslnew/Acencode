@@ -1,14 +1,14 @@
 """
-Bot Entry Point - FIXED: proper handler registration.
+Bot Entry Point - FIXED: manual handler registration.
 """
 import logging
 import signal
 import sys
 from pathlib import Path
-from pyrogram import Client, idle
+from pyrogram import Client, idle, filters
+from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from bot.config import Config
 from bot.utils.cleanup import ensure_dirs, cleanup_old_temp
-import bot.core as core  # Import module, bukan variable
 import asyncio
 
 # Ensure directories exist BEFORE logging setup
@@ -44,7 +44,6 @@ def setup_signal_handlers(app):
 
 
 async def main():
-    # Create client
     app = Client(
         "encode_bot",
         api_id=Config.API_ID,
@@ -53,26 +52,52 @@ async def main():
         workdir=str(Config.BASE_DIR / "sessions"),
     )
 
-    # Set global reference - assign instance ke module variable
-    core.app = app
+    logger.info("Registering handlers...")
 
-    logger.info("Client created, importing handlers...")
+    # === IMPORT HANDLER FUNCTIONS ===
+    from bot.handlers.encode import handle_video, handle_video_doc, _encode_pipeline
+    from bot.handlers.cancel import cancel_command
+    from bot.handlers.callback import cancel_callback, refresh_callback
+    from bot.handlers.settings import settings_command
+    from bot.handlers.auth_handler import verify_callback, refresh_token_callback, start_command
+    from bot.handlers.text_input import handle_text_input, handle_photo_input
+    from bot.handlers.test_handler import test_all_messages, test_video_filter, test_command
 
-    # Import handlers AFTER app is created
-    import bot.handlers.encode
-    import bot.handlers.cancel
-    import bot.handlers.callback
-    import bot.handlers.settings
-    import bot.handlers.auth_handler
-    import bot.handlers.text_input
-    import bot.handlers.test_handler
+    # === REGISTER HANDLERS ===
+    # Test handlers
+    app.add_handler(MessageHandler(test_all_messages, filters.group))
+    app.add_handler(MessageHandler(test_video_filter, filters.video & filters.group))
+    app.add_handler(MessageHandler(test_command, filters.command("test") & filters.group))
 
-    # Count handlers
+    # Encode handlers
+    app.add_handler(MessageHandler(handle_video, filters.video & filters.group))
+    app.add_handler(MessageHandler(handle_video_doc, filters.document & filters.group))
+
+    # Cancel handler
+    app.add_handler(MessageHandler(cancel_command, filters.command("cancel") & filters.group))
+
+    # Callback handlers
+    app.add_handler(CallbackQueryHandler(cancel_callback, filters.regex(r"^cancel:")))
+    app.add_handler(CallbackQueryHandler(refresh_callback, filters.regex(r"^refresh:")))
+
+    # Settings
+    app.add_handler(MessageHandler(settings_command, filters.command("settings") & filters.group))
+
+    # Auth
+    app.add_handler(CallbackQueryHandler(verify_callback, filters.regex(r"^verify_me$")))
+    app.add_handler(CallbackQueryHandler(refresh_token_callback, filters.regex(r"^refresh_token$")))
+    app.add_handler(MessageHandler(start_command, filters.private & filters.command("start")))
+
+    # Text input
+    app.add_handler(MessageHandler(handle_text_input, filters.text & filters.private))
+    app.add_handler(MessageHandler(handle_photo_input, filters.photo & filters.private))
+
+    # Count total
     total = 0
     for group_num, handlers in app.dispatcher.groups.items():
         total += len(handlers)
         logger.info(f"Group {group_num}: {len(handlers)} handlers")
-    logger.info(f"TOTAL HANDLERS: {total}")
+    logger.info(f"TOTAL HANDLERS REGISTERED: {total}")
 
     setup_signal_handlers(app)
 

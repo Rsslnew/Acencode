@@ -1,11 +1,10 @@
 """
-Encode Handler - FIXED: module-level functions for Pyrogram.
+Encode Handler - FIXED: module-level functions, no decorators.
 """
 import asyncio
 import logging
 import time
 from pathlib import Path
-from pyrogram import Client, filters
 from pyrogram.types import Message
 from bot.config import Config
 from bot.handlers.queue_manager import queue_manager
@@ -52,9 +51,7 @@ def is_video_file(message: Message) -> bool:
     return False
 
 
-# === HANDLER 1: Video files (message.video) ===
-@Client.on_message(filters.video & filters.group)
-async def handle_video(client: Client, message: Message):
+async def handle_video(client, message: Message):
     global total_task_counter, running_task_counter
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
@@ -116,9 +113,7 @@ async def handle_video(client: Client, message: Message):
             pass
 
 
-# === HANDLER 2: Video documents (message.document with video mime) ===
-@Client.on_message(filters.document & filters.group)
-async def handle_video_doc(client: Client, message: Message):
+async def handle_video_doc(client, message: Message):
     if not is_video_file(message):
         return
 

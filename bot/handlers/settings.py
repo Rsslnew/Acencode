@@ -1,9 +1,8 @@
 """
-Settings Handler v3 - Module-level functions for Pyrogram.
+Settings Handler v3 - Module-level functions, no decorators.
 """
 import json
 import logging
-from pyrogram import Client, filters
 from pyrogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton
@@ -13,7 +12,7 @@ from bot.utils.user_settings import get_user_settings, UserSettings
 logger = logging.getLogger(__name__)
 
 
-# ============ KEYBOARD BUILDERS ============
+# ============ KEYBOARD BUILDERS (sama, tidak berubah) ============
 
 def _build_main_menu(settings: UserSettings) -> InlineKeyboardMarkup:
     dest = settings.upload_destination.capitalize()
@@ -391,8 +390,7 @@ def _build_autorename_mode_menu() -> InlineKeyboardMarkup:
 
 # ============ COMMAND HANDLER ============
 
-@Client.on_message(filters.command("settings") & filters.group)
-async def settings_command(client: Client, message: Message):
+async def settings_command(client, message: Message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
     settings = get_user_settings(user_id)
@@ -410,24 +408,21 @@ async def settings_command(client: Client, message: Message):
 
 # ============ CALLBACK HANDLERS ============
 
-@Client.on_callback_query(filters.regex(r"^sett:upload_dest$"))
-async def cb_upload_dest(client: Client, callback: CallbackQuery):
+async def cb_upload_dest(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Upload Destination Settings**\n\nChoose destination:",
         reply_markup=_build_upload_dest_menu()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett:encode$"))
-async def cb_encode(client: Client, callback: CallbackQuery):
+async def cb_encode(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     text, buttons = _build_encode_menu(settings)
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:watermark$"))
-async def cb_watermark(client: Client, callback: CallbackQuery):
+async def cb_watermark(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     tw = settings.text_watermark or "None"
@@ -445,42 +440,36 @@ async def cb_watermark(client: Client, callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=_build_watermark_menu())
 
 
-@Client.on_callback_query(filters.regex(r"^sett:tg_tools$"))
-async def cb_tg_tools(client: Client, callback: CallbackQuery):
+async def cb_tg_tools(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     text, buttons = _build_tg_tools_menu(settings)
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:gdrive$"))
-async def cb_gdrive(client: Client, callback: CallbackQuery):
+async def cb_gdrive(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     text, buttons = _build_gdrive_menu(settings)
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:gofile$"))
-async def cb_gofile(client: Client, callback: CallbackQuery):
+async def cb_gofile(client, callback: CallbackQuery):
     await callback.answer("GoFile settings coming soon!", show_alert=True)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:rclone$"))
-async def cb_rclone(client: Client, callback: CallbackQuery):
+async def cb_rclone(client, callback: CallbackQuery):
     await callback.answer("Rclone settings coming soon!", show_alert=True)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:extra$"))
-async def cb_extra(client: Client, callback: CallbackQuery):
+async def cb_extra(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     text, buttons = _build_extra_menu(settings)
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:reset$"))
-async def cb_reset(client: Client, callback: CallbackQuery):
+async def cb_reset(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     settings.reset()
@@ -488,8 +477,7 @@ async def cb_reset(client: Client, callback: CallbackQuery):
     await cb_back_main(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett:export$"))
-async def cb_export(client: Client, callback: CallbackQuery):
+async def cb_export(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     data = settings.export_dict()
@@ -502,8 +490,7 @@ async def cb_export(client: Client, callback: CallbackQuery):
     await callback.answer("Settings exported!")
 
 
-@Client.on_callback_query(filters.regex(r"^sett:import$"))
-async def cb_import(client: Client, callback: CallbackQuery):
+async def cb_import(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Import Settings**\n\n"
         "Reply to this message with your settings JSON to import.",
@@ -513,16 +500,14 @@ async def cb_import(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett:close$"))
-async def cb_close(client: Client, callback: CallbackQuery):
+async def cb_close(client, callback: CallbackQuery):
     try:
         await callback.message.delete()
     except Exception:
         pass
 
 
-@Client.on_callback_query(filters.regex(r"^sett:back_main$"))
-async def cb_back_main(client: Client, callback: CallbackQuery):
+async def cb_back_main(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     username = callback.from_user.username or callback.from_user.first_name
     settings = get_user_settings(user_id)
@@ -539,8 +524,7 @@ async def cb_back_main(client: Client, callback: CallbackQuery):
 
 # --- Upload Destination ---
 
-@Client.on_callback_query(filters.regex(r"^sett_dest:(.+)$"))
-async def cb_set_dest(client: Client, callback: CallbackQuery):
+async def cb_set_dest(client, callback: CallbackQuery):
     dest = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -551,24 +535,21 @@ async def cb_set_dest(client: Client, callback: CallbackQuery):
 
 # --- Encode Sub-menus ---
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:video_codec$"))
-async def cb_enc_vc(client: Client, callback: CallbackQuery):
+async def cb_enc_vc(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Encode Codec**\n\nSelect a codec for video encoding.",
         reply_markup=_build_video_codec_menu()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:preset$"))
-async def cb_enc_preset(client: Client, callback: CallbackQuery):
+async def cb_enc_preset(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Encode Preset**\n\nSelect a preset for video encoding.",
         reply_markup=_build_preset_menu()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:crf$"))
-async def cb_enc_crf(client: Client, callback: CallbackQuery):
+async def cb_enc_crf(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Edit CRF**\n\nCurrent Value: (send value in chat)\n\n"
         "Range: 0-51 (lower = better quality, larger file)",
@@ -580,8 +561,7 @@ async def cb_enc_crf(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:vbitrate$"))
-async def cb_enc_vbitrate(client: Client, callback: CallbackQuery):
+async def cb_enc_vbitrate(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Edit Video Bitrate**\n\nCurrent Value: (send value in chat)",
         reply_markup=InlineKeyboardMarkup([
@@ -592,24 +572,21 @@ async def cb_enc_vbitrate(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:resolution$"))
-async def cb_enc_resolution(client: Client, callback: CallbackQuery):
+async def cb_enc_resolution(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Encode Resolution**\n\nSelect a resolution.",
         reply_markup=_build_resolution_menu()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:audio_codec$"))
-async def cb_enc_ac(client: Client, callback: CallbackQuery):
+async def cb_enc_ac(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Audio Codec**\n\nSelect an audio codec.",
         reply_markup=_build_audio_codec_menu()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_enc:abitrate$"))
-async def cb_enc_ab(client: Client, callback: CallbackQuery):
+async def cb_enc_ab(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Audio Bitrate**\n\nSelect an audio bitrate.",
         reply_markup=_build_audio_bitrate_menu()
@@ -618,8 +595,7 @@ async def cb_enc_ab(client: Client, callback: CallbackQuery):
 
 # --- Encode Value Setters ---
 
-@Client.on_callback_query(filters.regex(r"^sett_vc:(.+)$"))
-async def cb_set_vc(client: Client, callback: CallbackQuery):
+async def cb_set_vc(client, callback: CallbackQuery):
     codec = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -628,8 +604,7 @@ async def cb_set_vc(client: Client, callback: CallbackQuery):
     await cb_encode(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_pr:(.+)$"))
-async def cb_set_preset(client: Client, callback: CallbackQuery):
+async def cb_set_preset(client, callback: CallbackQuery):
     preset = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -638,8 +613,7 @@ async def cb_set_preset(client: Client, callback: CallbackQuery):
     await cb_encode(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_res:(.+)$"))
-async def cb_set_res(client: Client, callback: CallbackQuery):
+async def cb_set_res(client, callback: CallbackQuery):
     res = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -648,8 +622,7 @@ async def cb_set_res(client: Client, callback: CallbackQuery):
     await cb_encode(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ac:(.+)$"))
-async def cb_set_ac(client: Client, callback: CallbackQuery):
+async def cb_set_ac(client, callback: CallbackQuery):
     codec = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -658,8 +631,7 @@ async def cb_set_ac(client: Client, callback: CallbackQuery):
     await cb_encode(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ab:(.+)$"))
-async def cb_set_ab(client: Client, callback: CallbackQuery):
+async def cb_set_ab(client, callback: CallbackQuery):
     bitrate = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -670,8 +642,7 @@ async def cb_set_ab(client: Client, callback: CallbackQuery):
 
 # --- Watermark ---
 
-@Client.on_callback_query(filters.regex(r"^sett_wm:position$"))
-async def cb_wm_position(client: Client, callback: CallbackQuery):
+async def cb_wm_position(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     current = settings.watermark_position
@@ -681,8 +652,7 @@ async def cb_wm_position(client: Client, callback: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_wpos:(.+)$"))
-async def cb_set_wm_position(client: Client, callback: CallbackQuery):
+async def cb_set_wm_position(client, callback: CallbackQuery):
     pos = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -693,32 +663,28 @@ async def cb_set_wm_position(client: Client, callback: CallbackQuery):
 
 # --- Extra Sub-menus ---
 
-@Client.on_callback_query(filters.regex(r"^sett_ex:metadata$"))
-async def cb_ex_metadata(client: Client, callback: CallbackQuery):
+async def cb_ex_metadata(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     text, buttons = _build_metadata_menu(settings)
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ex:autorename$"))
-async def cb_ex_autorename(client: Client, callback: CallbackQuery):
+async def cb_ex_autorename(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     text, buttons = _build_autorename_menu(settings)
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ar:mode$"))
-async def cb_ar_mode(client: Client, callback: CallbackQuery):
+async def cb_ar_mode(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Choose AutoRename mode!**",
         reply_markup=_build_autorename_mode_menu()
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sett_arm:(.+)$"))
-async def cb_set_arm(client: Client, callback: CallbackQuery):
+async def cb_set_arm(client, callback: CallbackQuery):
     mode = callback.data.split(":")[1]
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -727,8 +693,7 @@ async def cb_set_arm(client: Client, callback: CallbackQuery):
     await cb_ex_autorename(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ex:excl_ext$"))
-async def cb_ex_excl_ext(client: Client, callback: CallbackQuery):
+async def cb_ex_excl_ext(client, callback: CallbackQuery):
     await callback.message.edit_text(
         "**Edit Excluded Extensions**\n\nCurrent Value:",
         reply_markup=InlineKeyboardMarkup([
@@ -741,8 +706,7 @@ async def cb_ex_excl_ext(client: Client, callback: CallbackQuery):
 
 # --- Screenshot ---
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:ss_count$"))
-async def cb_screenshot_count(client: Client, callback: CallbackQuery):
+async def cb_screenshot_count(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     current = settings.get("screenshot_count", 3)
@@ -765,8 +729,7 @@ async def cb_screenshot_count(client: Client, callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=buttons)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_ss:(.+)$"))
-async def cb_set_screenshot_count(client: Client, callback: CallbackQuery):
+async def cb_set_screenshot_count(client, callback: CallbackQuery):
     count = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
@@ -782,8 +745,7 @@ async def cb_set_screenshot_count(client: Client, callback: CallbackQuery):
 
 # --- TG Tools Toggles ---
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:doc$"))
-async def cb_tg_doc(client: Client, callback: CallbackQuery):
+async def cb_tg_doc(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     new_type = "DOCUMENT" if settings.upload_type == "MEDIA" else "MEDIA"
@@ -792,8 +754,7 @@ async def cb_tg_doc(client: Client, callback: CallbackQuery):
     await cb_tg_tools(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:spoiler$"))
-async def cb_tg_spoiler(client: Client, callback: CallbackQuery):
+async def cb_tg_spoiler(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     settings.spoiler_effect = not settings.spoiler_effect
@@ -801,8 +762,7 @@ async def cb_tg_spoiler(client: Client, callback: CallbackQuery):
     await cb_tg_tools(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:eq_split$"))
-async def cb_tg_eqsplit(client: Client, callback: CallbackQuery):
+async def cb_tg_eqsplit(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     settings.equal_splits = not settings.equal_splits
@@ -810,8 +770,7 @@ async def cb_tg_eqsplit(client: Client, callback: CallbackQuery):
     await cb_tg_tools(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:cap_above$"))
-async def cb_tg_capabove(client: Client, callback: CallbackQuery):
+async def cb_tg_capabove(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     settings.caption_above_media = not settings.caption_above_media
@@ -819,8 +778,7 @@ async def cb_tg_capabove(client: Client, callback: CallbackQuery):
     await cb_tg_tools(client, callback)
 
 
-@Client.on_callback_query(filters.regex(r"^sett_tg:dis_thumb$"))
-async def cb_tg_disthumb(client: Client, callback: CallbackQuery):
+async def cb_tg_disthumb(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     settings.disable_thumbnail = not settings.disable_thumbnail
@@ -830,8 +788,7 @@ async def cb_tg_disthumb(client: Client, callback: CallbackQuery):
 
 # --- Gdrive Toggles ---
 
-@Client.on_callback_query(filters.regex(r"^sett_gd:stop_dup$"))
-async def cb_gd_stopdup(client: Client, callback: CallbackQuery):
+async def cb_gd_stopdup(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     settings = get_user_settings(user_id)
     settings.stop_duplicate = not settings.stop_duplicate

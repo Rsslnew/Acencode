@@ -2,15 +2,13 @@
 Callback Query Handler - handle Cancel & Refresh buttons.
 """
 import logging
-from pyrogram import Client, filters
 from pyrogram.types import CallbackQuery
 from bot.handlers.queue_manager import queue_manager
 
 logger = logging.getLogger(__name__)
 
 
-@Client.on_callback_query(filters.regex(r"^cancel:"))
-async def cancel_callback(client: Client, callback: CallbackQuery):
+async def cancel_callback(client, callback: CallbackQuery):
     job_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
 
@@ -35,6 +33,5 @@ async def cancel_callback(client: Client, callback: CallbackQuery):
         await callback.answer("Job sudah selesai atau tidak ditemukan.", show_alert=True)
 
 
-@Client.on_callback_query(filters.regex(r"^refresh:"))
-async def refresh_callback(client: Client, callback: CallbackQuery):
+async def refresh_callback(client, callback: CallbackQuery):
     await callback.answer("Refreshed!", show_alert=False)
